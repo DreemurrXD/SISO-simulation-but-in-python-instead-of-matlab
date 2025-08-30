@@ -102,9 +102,14 @@ def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_
         error = (goal -(k * actual))
         
         output = (kp * error) +(ki * integral(error, dt) ) +(kd * derivative(error, past_error, dt));
-
+        #if either the plant or controller is 0, it should be one 
+        if (output == 0):
+            output = 1
         #the plant, the mathematical representation of the thing you are moddeling
         plant_answer = plant(numerator, denominator,error, past_error, dt)
+
+        if (plant_answer == 0):
+            plant_answer = 1
 
         actual += (output * plant_answer* movement_damping)
         past_error = error
