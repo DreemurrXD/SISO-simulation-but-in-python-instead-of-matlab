@@ -1,16 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+from scipy.signal import savgol_filter
 time_array = [0]
 position_array = [0]
 line = [1]
 dt = 0.01
 global amount_of_points
-amount_of_points = 100
+amount_of_points = 500
 #kd is derivative, ki is integral and kp is proportional control
-kd = 0
-ki = 0
-kp = 1.4
+kd = 2
+ki = 10
+kp = 15
 
 #multiplier of the error
 k = 1
@@ -20,15 +21,16 @@ output = 0
 
 global goal
 goal = 1
+line = [goal]
 actual = 0
-past_error = 0
+past_error = goal-actual
 #numberator has form [a,b,c], where numerator = a * s^2 + b * s + c. the amount of terms = highest power
 #eg 2 terms means it's A * s  +  b
 #same with denominator but obviously on the bottem
 
 #if there is no plant, set both num and denom as [1] 
 numerator = [1]
-denominator = [1,2,1]
+denominator = [5,0,-1]
 
 def plant(numerator, denominator,error, past_error, dt):
     #numerator
@@ -73,6 +75,9 @@ def integral(error, dt):
             answer += ((goal - position_array[i]) * dt)
     else:
         answer = 0
+
+    #this term is here to avoid integral wind up, or at least lower it's effect
+    answer = answer * error
     """
     if math.fabs(answer) > goal/2:
         answer = goal/2 * (answer/math.fabs(answer))
@@ -111,16 +116,47 @@ def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_
         if (plant_answer == 0):
             plant_answer = 1
 
-        actual += (output * plant_answer* movement_damping)
+        actual += (output * plant_answer* movement_damping * dt)
         past_error = error
         time_array.append(i*dt)
         position_array.append(actual)
         line.append(goal)
 
+        if (math.fabs(actual) > 100*goal):
+            break
     xpoints = np.array(time_array)
     ypoints = np.array(position_array)
 
-    plt.plot(xpoints, ypoints, xpoints, line, 'r--')
+    #this is here if the simulation leaves reasonable bounds before it should
+    #the filter requires 50 data points and throws an error if it's given less
+    #this populates the postion_array with 50 of the last datapoint
+    #print(xpoints)
+    #print(ypoints)        
+    if (len(position_array) >= 50):
+        #print(len(position_array))
+        print("savgol filter has enough data points")
+    else:
+        print("savgol filter doesn't have enough points")
+        temp = 0
+        temp = position_array[len(position_array)-1]
+        time_temp = time_array[len(time_array)-1]
+        x=1
+        for i in range(50):
+            position_array.append(temp)
+            time_array.append(time_temp + (x * dt))
+            line.append(goal)
+            x+=1
+            
+    xpoints = np.array(time_array)
+    ypoints = np.array(position_array)
+    ypoints_filtered = savgol_filter(np.array(position_array),50,10)    
+            
+            
+            
+    print(len(xpoints))
+    print(len(ypoints))
+    print(len(line))
+    plt.plot(xpoints, ypoints,xpoints, ypoints_filtered,"deepskyblue", xpoints, line, 'r--')
     plt.show()
 
     return None
