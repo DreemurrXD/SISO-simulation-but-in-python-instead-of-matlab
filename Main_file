@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, butter, filtfilt
 time_array = [0]
 position_array = [0]
 line = [1]
@@ -23,14 +23,14 @@ global goal
 goal = 1
 line = [goal]
 actual = 0
-past_error = goal-actual
+past_error = 0
 #numberator has form [a,b,c], where numerator = a * s^2 + b * s + c. the amount of terms = highest power
 #eg 2 terms means it's A * s  +  b
 #same with denominator but obviously on the bottem
 
 #if there is no plant, set both num and denom as [1] 
 numerator = [1]
-denominator = [5,0,-1]
+denominator = [1,2,1]
 
 def plant(numerator, denominator,error, past_error, dt):
     #numerator
@@ -66,6 +66,15 @@ def plant(numerator, denominator,error, past_error, dt):
     answer = float(temp_num/temp_denom)
     #print(answer,"plant")
     return answer
+
+def butter_lowpass_filter(position_array,cutoff, fs, order):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    # Get the filter coefficients 
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    y = filtfilt(b, a, position_array)
+    return y
+
 
 def integral(error, dt):
     #print(position_array)
@@ -131,7 +140,8 @@ def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_
     #the filter requires 50 data points and throws an error if it's given less
     #this populates the postion_array with 50 of the last datapoint
     #print(xpoints)
-    #print(ypoints)        
+    #print(ypoints)
+    """
     if (len(position_array) >= 50):
         #print(len(position_array))
         print("savgol filter has enough data points")
@@ -146,17 +156,21 @@ def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_
             time_array.append(time_temp + (x * dt))
             line.append(goal)
             x+=1
-            
+    """        
     xpoints = np.array(time_array)
-    ypoints = np.array(position_array)
-    ypoints_filtered = savgol_filter(np.array(position_array),50,10)    
+
+    cutoff = 25
+    fs = 100
+    order = 12
+    ypoints_filtered = np.array(butter_lowpass_filter(position_array,cutoff, fs, order))
+    #ypoints_filtered = savgol_filter(np.array(position_array),50,10)    
             
             
             
-    print(len(xpoints))
-    print(len(ypoints))
+    print(xpoints)
+    print(ypoints)
     print(len(line))
-    plt.plot(xpoints, ypoints,xpoints, ypoints_filtered,"deepskyblue", xpoints, line, 'r--')
+    plt.plot(xpoints, ypoints, "orange",xpoints, ypoints_filtered,"deepskyblue", xpoints, line, 'r--')
     plt.show()
 
     return None
