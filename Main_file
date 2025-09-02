@@ -1,21 +1,22 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from scipy.signal import savgol_filter, butter, filtfilt
+from math import e
+from scipy.signal import butter, filtfilt
 time_array = [0]
 position_array = [0]
 line = [1]
-dt = 0.01
+dt = 0.001
 global amount_of_points
-amount_of_points = 500
+amount_of_points = 10000
 #kd is derivative, ki is integral and kp is proportional control
-kd = 2
-ki = 10
-kp = 15
+kd = 0
+ki = 0
+kp = 0
 
-#multiplier of the error
-k = 1
-#movement damping = 1 if no damping and = 0.9 if it's 90% efficient at moveing
+#multiplier of the plant, unity feedback
+k = 1000
+#movement damping = 1 if no damping and = 0.9 if it's 90% efficient at moving
 movement_damping = 0.99
 output = 0
 
@@ -29,43 +30,48 @@ past_error = 0
 #same with denominator but obviously on the bottem
 
 #if there is no plant, set both num and denom as [1] 
-numerator = [1]
-denominator = [1,2,1]
+numerator = [1,1]
+denominator = [1,-50]
+print(e)
 
-def plant(numerator, denominator,error, past_error, dt):
-    #numerator
-    temp_num = 0
-    for i in range (len(numerator)):
-        if (i == 0):
-            temp_num += numerator[len(numerator)-1]
+def plant(numerator, denominator,k,simulation_time):
+    coeff = []
+    diff = len(denominator) - len(numerator)
+    for i in range(len(denominator)):
+        if ((i-diff)>= 0):
+            coeff.append(denominator[i] + k * numerator[i-diff])
+        else:
+            coeff.append(denominator[i])
+    #print(coeff)
+
+    roots = np.roots(coeff)
+
+    #print(roots)
+    #print(len(roots))
+    answer = 0
+    for i in range(len(roots)):
+        temp = 0
+        if (roots[i].real != 0):
+            temp = pow(e, (roots[i].real * simulation_time))
+            #print(temp, "real")
         else:
             temp = 1
-            for x in range(i):
-                temp = temp * derivative(error, past_error, dt)
-            temp = temp * numerator[len(numerator) - (i+1)]
-
-            temp_num +=temp
-    #print(temp_num, "numerator part")
-    
-    #denominator
-    #I'm assuming I can use the derivative function and then inverse the result and multiply that to the denominator
-    #Probably should check this later on
-    temp_denom = 0
-    for i in range (len(denominator)):
-        if (i == 0):
-            temp_denom += denominator[len(denominator)-1]
-        else:
-            temp = 1
-            for x in range(i):
-                temp = temp * derivative(error, past_error, dt)
-            temp = temp * denominator[len(denominator) - (i+1)]
-
-            temp_denom += temp
         
-    #print(temp_denom, "numerator part")
-    answer = float(temp_num/temp_denom)
-    #print(answer,"plant")
+        if (roots[i].imag != 0):
+            temp = temp * math.cos(roots[i].imag * simulation_time)
+            #print(temp, "real * imaginary")
+        else:
+            temp = temp * 1
+        
+        answer = answer + temp
+    
+    #print(answer)
     return answer
+
+    
+        
+    
+
 
 def butter_lowpass_filter(position_array,cutoff, fs, order):
     nyq = 0.5 * fs
@@ -113,40 +119,57 @@ if ( ((kp * kp) - (2 * ki * kd)) > 0):
 def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_array,line, past_error,numerator, denominator, k):
     
     for i in range (amount_of_points):
-        error = (goal -(k * actual))
-        
-        output = (kp * error) +(ki * integral(error, dt) ) +(kd * derivative(error, past_error, dt));
+        error = (goal - actual)
+        simulation_time = i * dt
+        #print(i)
+        if (i % 5 == 0):
+            output = (kp * error) +(ki * integral(error, dt) ) +(kd * derivative(error, past_error, dt));
+            #print("yay",i)
+        else:
+            output = 1
         #if either the plant or controller is 0, it should be one 
         if (output == 0):
             output = 1
+            
         #the plant, the mathematical representation of the thing you are moddeling
-        plant_answer = plant(numerator, denominator,error, past_error, dt)
-
+        plant_answer = plant(numerator, denominator,k,simulation_time)
+        """
         if (plant_answer == 0):
             plant_answer = 1
+        """   
 
-        actual += (output * plant_answer* movement_damping * dt)
+        actual = goal -(output * plant_answer* movement_damping * goal)
+        """
+        print(output, "output")
+        print(error, "error")
+        print(actual,"actual")
+        """
+        #making sure it doesn't grow exponenitally too long
+        if (abs(actual) > 100 * goal):
+            print(actual, "maybe we stop here")
+            break
+        #end the graph if it's stable for long enough
+        temp = 0
+        if (len(position_array) > 200):
+            for j in range (100):
+                if (position_array[len(position_array)-(j+1)] != goal):
+                    temp = 1
+        if (temp == 0) and (len(position_array) > 200):
+            print("should be stable")
+            break
+                
         past_error = error
         time_array.append(i*dt)
         position_array.append(actual)
         line.append(goal)
+        
 
-        if (math.fabs(actual) > 100*goal):
-            break
-    xpoints = np.array(time_array)
-    ypoints = np.array(position_array)
 
-    #this is here if the simulation leaves reasonable bounds before it should
-    #the filter requires 50 data points and throws an error if it's given less
-    #this populates the postion_array with 50 of the last datapoint
-    #print(xpoints)
-    #print(ypoints)
-    """
     if (len(position_array) >= 50):
         #print(len(position_array))
-        print("savgol filter has enough data points")
+        print("filter has enough data points")
     else:
-        print("savgol filter doesn't have enough points")
+        print("filter doesn't have enough points")
         temp = 0
         temp = position_array[len(position_array)-1]
         time_temp = time_array[len(time_array)-1]
@@ -156,21 +179,34 @@ def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_
             time_array.append(time_temp + (x * dt))
             line.append(goal)
             x+=1
-    """        
+    xpoints = np.array(time_array)
+    ypoints = np.array(position_array)     
+
+
+      
     xpoints = np.array(time_array)
 
     cutoff = 25
     fs = 100
     order = 12
+    print(len(position_array),"length of position array")
+    """
+    plt.plot(xpoints, ypoints)
+    plt.show()
+    """
     ypoints_filtered = np.array(butter_lowpass_filter(position_array,cutoff, fs, order))
-    #ypoints_filtered = savgol_filter(np.array(position_array),50,10)    
+     
             
             
             
-    print(xpoints)
-    print(ypoints)
+    #print(len(xpoints), xpoints,"xpoints")
+    #print(len(ypoints), ypoints, "ypoints")
+    print(len(xpoints))
+    print(len(ypoints))
     print(len(line))
-    plt.plot(xpoints, ypoints, "orange",xpoints, ypoints_filtered,"deepskyblue", xpoints, line, 'r--')
+    
+    #plt.plot(xpoints, ypoints, "orange",xpoints, ypoints_filtered,"deepskyblue", xpoints, line, 'r--')
+    plt.plot(xpoints, ypoints, "orange", xpoints, line, 'r--')
     plt.show()
 
     return None
