@@ -15,7 +15,7 @@ ki = 0
 kp = 0
 
 #multiplier of the plant, unity feedback
-k = 1000
+k = 10
 #movement damping = 1 if no damping and = 0.9 if it's 90% efficient at moving
 movement_damping = 0.99
 output = 0
@@ -30,8 +30,8 @@ past_error = 0
 #same with denominator but obviously on the bottem
 
 #if there is no plant, set both num and denom as [1] 
-numerator = [1,1]
-denominator = [1,-50]
+numerator = [1,100]
+denominator = [1,2,50]
 print(e)
 
 def plant(numerator, denominator,k,simulation_time):
@@ -136,8 +136,12 @@ def run_simulation(goal,actual,movement_damping,kd,ki,dp,dt,time_array,position_
         """
         if (plant_answer == 0):
             plant_answer = 1
-        """   
-
+        """
+        """
+        open_loop_tf = output * plant_answer* movement_damping
+        print(open_loop_tf)
+        actual = goal * (open_loop_tf / (1 + open_loop_tf))
+        """
         actual = goal -(output * plant_answer* movement_damping * goal)
         """
         print(output, "output")
