@@ -31,7 +31,7 @@ past_error = 0
 
 #if there is no plant, set both num and denom as [1] 
 numerator = [1]
-denominator = [1,0]
+denominator = [1,2,50]
 
 global constants
 constants = []
@@ -68,6 +68,19 @@ def plant(numerator, denominator,k,simulation_time):
                 #where D = square root of (a^2 + b^2)
                 #and theta = tan^-1(b/a)
                 #source, let's unlock maths, youtube
+                a = roots[x].real
+                b = roots[x].imag
+                D = math.sqrt(pow(a,2) + pow(b,2))
+                #presuming radians is the correct unit
+                theta = math.atan(float(b)/a)
+                for r in range(len(roots)):
+                    if (r == 0):
+                        matrix_in = 1
+                    else:
+                        matrix_in = pow(D,r) * math.cos(r * theta)
+                    print(matrix_in)
+                    constants[r][x] = matrix_in
+                
 
             if (roots[x].real != 0) and (roots[x].imag == 0):
                 #e
@@ -76,6 +89,7 @@ def plant(numerator, denominator,k,simulation_time):
                         matrix_in = 1
                     else:
                         matrix_in = pow(roots[x].real,r)
+                    print(matrix_in)
                     constants[r][x] = matrix_in
                     
                     
@@ -89,6 +103,7 @@ def plant(numerator, denominator,k,simulation_time):
                         matrix_in = pow(roots[x].imag,r)
                     elif (r%2 == 0) and (r%4 != 0):
                         matrix_in = -1 * pow(roots[x].imag, r)
+                    print(matrix_in)
                     constants[r][x] = matrix_in
                 
             if (roots[x].real == 0) and (roots[x].imag == 0):
@@ -101,18 +116,11 @@ def plant(numerator, denominator,k,simulation_time):
                         matrix_in = 1
                     else:
                         matrix_in = 0
+                    print(matrix_in)
                     constants[r][x] = matrix_in
-                
+        print(constants)
 
-
-
-
-
-
-
-
-
-
+    
     
     answer = 0
     for i in range(len(roots)):
