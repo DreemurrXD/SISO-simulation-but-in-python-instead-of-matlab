@@ -8,14 +8,14 @@ position_array = [0]
 line = [1]
 dt = 0.001
 global amount_of_points
-amount_of_points = 10000
+amount_of_points = 1000
 #kd is derivative, ki is integral and kp is proportional control
 kd = 0
 ki = 0
 kp = 0
 
 #multiplier of the plant, unity feedback
-k = 10
+k = 0
 #movement damping = 1 if no damping and = 0.9 if it's 90% efficient at moving
 movement_damping = 0.99
 output = 0
@@ -30,9 +30,11 @@ past_error = 0
 #same with denominator but obviously on the bottem
 
 #if there is no plant, set both num and denom as [1] 
-numerator = [1,100]
-denominator = [1,2,50]
-print(e)
+numerator = [1]
+denominator = [1,0]
+
+global constants
+constants = []
 
 def plant(numerator, denominator,k,simulation_time):
     coeff = []
@@ -46,8 +48,72 @@ def plant(numerator, denominator,k,simulation_time):
 
     roots = np.roots(coeff)
 
-    #print(roots)
+    print(roots)
     #print(len(roots))
+
+    #on the first point, we need to figure out coefficients to fit
+    #boundary conditions
+    if (simulation_time == 0):
+        print("first round")
+        constants = [[0 for a in range(len(roots))] for b in range(len(roots))]
+        print(constants)
+        matrix_in = 0
+        for x in range(len(roots)):
+
+            if (roots[x].real != 0) and (roots[x].imag != 0):
+                #e and trig
+                #assumeing the form of the nth derivative of
+                #k * e^ax * cos(bx) to be...
+                #D^n * e^ax * cos(bx + (n * theta))
+                #where D = square root of (a^2 + b^2)
+                #and theta = tan^-1(b/a)
+                #source, let's unlock maths, youtube
+
+            if (roots[x].real != 0) and (roots[x].imag == 0):
+                #e
+                for r in range(len(roots)):
+                    if (r == 0):
+                        matrix_in = 1
+                    else:
+                        matrix_in = pow(roots[x].real,r)
+                    constants[r][x] = matrix_in
+                    
+                    
+                
+            if (roots[x].real == 0) and (roots[x].imag != 0):
+                #trig
+                for r in range(len(roots)):
+                    if (r == 0):
+                        matrix_in = 1
+                    elif (r%2 == 0) and (r%4 == 0):
+                        matrix_in = pow(roots[x].imag,r)
+                    elif (r%2 == 0) and (r%4 != 0):
+                        matrix_in = -1 * pow(roots[x].imag, r)
+                    constants[r][x] = matrix_in
+                
+            if (roots[x].real == 0) and (roots[x].imag == 0):
+                #I think this is a constant
+
+                for r in range(len(roots)):
+                    #the derivative of a constant is zero
+                    #so any further derivatives are zero
+                    if (r==0):
+                        matrix_in = 1
+                    else:
+                        matrix_in = 0
+                    constants[r][x] = matrix_in
+                
+
+
+
+
+
+
+
+
+
+
+    
     answer = 0
     for i in range(len(roots)):
         temp = 0
