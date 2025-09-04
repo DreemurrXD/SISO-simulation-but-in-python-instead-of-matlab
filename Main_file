@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import linalg
 import math
 from math import e
 from scipy.signal import butter, filtfilt
@@ -8,7 +9,7 @@ position_array = [0]
 line = [1]
 dt = 0.001
 global amount_of_points
-amount_of_points = 1000
+amount_of_points = 10000
 #kd is derivative, ki is integral and kp is proportional control
 kd = 0
 ki = 0
@@ -31,7 +32,11 @@ past_error = 0
 
 #if there is no plant, set both num and denom as [1] 
 numerator = [1]
-denominator = [1,2,50]
+denominator = [1,6,15,18,10]
+global boundary_conditions
+boundary_conditions = [1,0]
+
+global boundary_conditions_constants
 
 global constants
 constants = []
@@ -48,16 +53,38 @@ def plant(numerator, denominator,k,simulation_time):
 
     roots = np.roots(coeff)
 
-    print(roots)
+    #print(roots)
     #print(len(roots))
 
     #on the first point, we need to figure out coefficients to fit
     #boundary conditions
+    temp_roots = []
+    ignore = False
+    for x in range(len(roots)):
+        if (roots[x].real != 0) and (roots[x].imag != 0) and (ignore == False):
+            temp_roots.append(roots[x])
+            ignore = True
+        elif (ignore == True):
+            ignore = False
+    #print(temp_roots)
+    roots = []
+    for x in range(len(temp_roots)):
+        roots.append(temp_roots[x])
+    #print(roots)
     if (simulation_time == 0):
         print("first round")
+        print(roots)
+        matrix_in = 0
+        #removing one root out of two of the form of a +- cj
+        #so either a+ cj or a-cj remain because the arbitary coefficient ...
+        # is dealt with in the boundary conditions and not removing it ...
+        #causes problems
+                
+                
+
         constants = [[0 for a in range(len(roots))] for b in range(len(roots))]
         print(constants)
-        matrix_in = 0
+        
         for x in range(len(roots)):
 
             if (roots[x].real != 0) and (roots[x].imag != 0):
@@ -70,9 +97,19 @@ def plant(numerator, denominator,k,simulation_time):
                 #source, let's unlock maths, youtube
                 a = roots[x].real
                 b = roots[x].imag
-                D = math.sqrt(pow(a,2) + pow(b,2))
+                #coefficient in front of d has to be positive if real is
+                #positive or vice versa this should made it accurate
+                
+                #This may not work
+                
+                if (a> 0):
+                    modifier = 1
+                elif (a<0):
+                    modifier = -1
+                
+                D = modifier * math.sqrt(pow(a,2) + pow(b,2))
                 #presuming radians is the correct unit
-                theta = math.atan(float(b)/a)
+                theta = math.atan(b/a)
                 for r in range(len(roots)):
                     if (r == 0):
                         matrix_in = 1
@@ -107,6 +144,7 @@ def plant(numerator, denominator,k,simulation_time):
                     constants[r][x] = matrix_in
                 
             if (roots[x].real == 0) and (roots[x].imag == 0):
+                """
                 #I think this is a constant
 
                 for r in range(len(roots)):
@@ -118,11 +156,35 @@ def plant(numerator, denominator,k,simulation_time):
                         matrix_in = 0
                     print(matrix_in)
                     constants[r][x] = matrix_in
-        print(constants)
+                """
+                #pretty sure this creates t to the power of n 
+        #print(constants)
+        #define your boundary conditions, if not the program assumes nth derivative...
+        #of your variable (position) will be zero at t = 0
+        #the first value is one but the total equation = 0
+        global boundary_conditions
+        global boundary_conditions_constants
 
-    
-    
+        
+        if (boundary_conditions == []):
+            for x in range(len(roots)):
+                if (x == 0):
+                    boundary_conditions.append(1)
+                else:
+                    boundary_conditions.append(0)
+        
+        
+        constants = np.array(constants)
+        boundary_conditions = np.array(boundary_conditions)
+        #solving for boundary conditions using a set of linear equations
+        #if a is singular, then change your boundary conditions or it just doesn't work
+        boundary_conditions_constants = linalg.solve(constants,boundary_conditions)
+        #print(boundary_conditions_constants)
+    #print(boundary_conditions_constants, "done")
     answer = 0
+    #print("roots start")
+    #print(len(roots))
+    #print(roots)
     for i in range(len(roots)):
         temp = 0
         if (roots[i].real != 0):
@@ -136,8 +198,11 @@ def plant(numerator, denominator,k,simulation_time):
             #print(temp, "real * imaginary")
         else:
             temp = temp * 1
-        
-        answer = answer + temp
+        #print(boundary_conditions_constants[i])
+            #print(roots,"roots")
+            #print(i,"i")
+            #print(boundary_conditions_constants,"arb consts")
+        answer = answer + (temp * boundary_conditions_constants[i])
     
     #print(answer)
     return answer
