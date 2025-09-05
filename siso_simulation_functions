@@ -1,0 +1,325 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from numpy import linalg
+import math
+from math import e
+from scipy.signal import butter, filtfilt
+
+global boundary_conditions
+#boundary_conditions = []
+global boundary_condition_constants
+
+def set_boundary_conditions(recieved_boundaries):
+    global boundary_conditions
+    boundary_conditions = recieved_boundaries
+
+def plant(numerator, denominator,k,simulation_time):
+    coeff = []
+    diff = len(denominator) - len(numerator)
+    for i in range(len(denominator)):
+        if ((i-diff)>= 0):
+            coeff.append(denominator[i] + k * numerator[i-diff])
+        else:
+            coeff.append(denominator[i])
+    #print(coeff)
+
+    roots = np.roots(coeff)
+
+    #print(roots)
+    #print(len(roots))
+
+    #on the first point, we need to figure out coefficients to fit
+    #boundary conditions
+    temp_roots = []
+    ignore = False
+    for x in range(len(roots)):
+        if (roots[x].real != 0) and (roots[x].imag != 0) and (ignore == False):
+            temp_roots.append(roots[x])
+            ignore = True
+        elif (ignore == True):
+            ignore = False
+    #print(temp_roots)
+    roots = []
+    for x in range(len(temp_roots)):
+        roots.append(temp_roots[x])
+    #print(roots)
+    if (simulation_time == 0):
+        print("first round")
+        #print(roots)
+        matrix_in = 0
+        #removing one root out of two of the form of a +- cj
+        #so either a+ cj or a-cj remain because the arbitary coefficient ...
+        # is dealt with in the boundary conditions and not removing it ...
+        #causes problems
+                
+                
+
+        constants = [[0 for a in range(len(roots))] for b in range(len(roots))]
+        print(constants)
+        
+        for x in range(len(roots)):
+
+            if (roots[x].real != 0) and (roots[x].imag != 0):
+                #e and trig
+                #assumeing the form of the nth derivative of
+                #k * e^ax * cos(bx) to be...
+                #D^n * e^ax * cos(bx + (n * theta))
+                #where D = square root of (a^2 + b^2)
+                #and theta = tan^-1(b/a)
+                #source, let's unlock maths, youtube
+                a = roots[x].real
+                b = roots[x].imag
+                #coefficient in front of d has to be positive if real is
+                #positive or vice versa this should made it accurate
+                
+                #This may not work
+                
+                if (a> 0):
+                    modifier = 1
+                elif (a<0):
+                    modifier = -1
+                
+                D = modifier * math.sqrt(pow(a,2) + pow(b,2))
+                #presuming radians is the correct unit
+                theta = math.atan(b/a)
+                for r in range(len(roots)):
+                    if (r == 0):
+                        matrix_in = 1
+                    else:
+                        matrix_in = pow(D,r) * math.cos(r * theta)
+                    print(matrix_in)
+                    constants[r][x] = matrix_in
+                
+
+            if (roots[x].real != 0) and (roots[x].imag == 0):
+                #e
+                for r in range(len(roots)):
+                    if (r == 0):
+                        matrix_in = 1
+                    else:
+                        matrix_in = pow(roots[x].real,r)
+                    print(matrix_in)
+                    constants[r][x] = matrix_in
+                    
+                    
+                
+            if (roots[x].real == 0) and (roots[x].imag != 0):
+                #trig
+                for r in range(len(roots)):
+                    if (r == 0):
+                        matrix_in = 1
+                    elif (r%2 == 0) and (r%4 == 0):
+                        matrix_in = pow(roots[x].imag,r)
+                    elif (r%2 == 0) and (r%4 != 0):
+                        matrix_in = -1 * pow(roots[x].imag, r)
+                    print(matrix_in)
+                    constants[r][x] = matrix_in
+                
+            if (roots[x].real == 0) and (roots[x].imag == 0):
+                """
+                #I think this is a constant
+
+                for r in range(len(roots)):
+                    #the derivative of a constant is zero
+                    #so any further derivatives are zero
+                    if (r==0):
+                        matrix_in = 1
+                    else:
+                        matrix_in = 0
+                    print(matrix_in)
+                    constants[r][x] = matrix_in
+                """
+                #pretty sure this creates t to the power of n 
+        #print(constants)
+        #define your boundary conditions, if not the program assumes nth derivative...
+        #of your variable (position) will be zero at t = 0
+        #the first value is one but the total equation = 0
+        global boundary_conditions
+        global boundary_conditions_constants
+
+        
+        if (boundary_conditions == []):
+            for x in range(len(roots)):
+                if (x == 0):
+                    boundary_conditions.append(1)
+                else:
+                    boundary_conditions.append(0)
+        
+        
+        constants = np.array(constants)
+        boundary_conditions = np.array(boundary_conditions)
+        #solving for boundary conditions using a set of linear equations
+        #if a is singular, then change your boundary conditions or it just doesn't work
+        boundary_conditions_constants = linalg.solve(constants,boundary_conditions)
+        print(boundary_conditions_constants)
+    #print(boundary_conditions_constants, "done")
+    answer = 0
+    #print("roots start")
+    #print(len(roots))
+    #print(roots)
+    for i in range(len(roots)):
+        temp = 0
+        if (roots[i].real != 0):
+            temp = pow(e, (roots[i].real * simulation_time))
+            #print(temp, "real")
+        else:
+            temp = 1
+        
+        if (roots[i].imag != 0):
+            temp = temp * math.cos(roots[i].imag * simulation_time)
+            #print(temp, "real * imaginary")
+        else:
+            temp = temp * 1
+        #print(boundary_conditions_constants[i])
+            #print(roots,"roots")
+            #print(i,"i")
+            #print(boundary_conditions_constants,"arb consts")
+        answer = answer + (temp * boundary_conditions_constants[i])
+    
+    #print(answer)
+    return answer
+
+    
+        
+    
+
+
+def butter_lowpass_filter(position_array,cutoff, fs, order):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    # Get the filter coefficients 
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    y = filtfilt(b, a, position_array)
+    return y
+
+
+def integral(error, dt,position_array,goal):
+    #print(position_array)
+    if (len(position_array) > 0):
+        answer = 0
+        for i in range (len(position_array)):
+            answer += ((goal - position_array[i]) * dt)
+    else:
+        answer = 0
+
+    #this term is here to avoid integral wind up, or at least lower it's effect
+    answer = answer * error
+    """
+    if math.fabs(answer) > goal/2:
+        answer = goal/2 * (answer/math.fabs(answer))
+    """
+    #print(answer,"i")
+    
+    return answer
+
+def derivative(error, past_error, dt):
+    answer = float ((error-past_error) / dt)
+    """
+    if math.fabs(answer) > goal/2:
+        answer = goal/2 * (answer/math.fabs(answer))
+    """
+    
+    #print(answer, "d")
+    
+    return answer
+def run_simulation(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,time_array,position_array,line, past_error,numerator, denominator, k):
+    #global amount_of_points
+    
+    for i in range (amount_of_points):
+        error = (goal - actual)
+        simulation_time = i * dt
+        #print(i)
+        if (i % 5 == 0):
+            output = (kp * error) +(ki * integral(error, dt,position_array,goal) ) +(kd * derivative(error, past_error, dt));
+            #print("yay",i)
+        else:
+            output = 1
+        #if either the plant or controller is 0, it should be one 
+        if (output == 0):
+            output = 1
+            
+        #the plant, the mathematical representation of the thing you are moddeling
+        plant_answer = plant(numerator, denominator,k,simulation_time)
+        """
+        if (plant_answer == 0):
+            plant_answer = 1
+        """
+        """
+        open_loop_tf = output * plant_answer* movement_damping
+        print(open_loop_tf)
+        actual = goal * (open_loop_tf / (1 + open_loop_tf))
+        """
+        actual = goal -(output * plant_answer* movement_damping * goal)
+
+        
+        """
+        print(output, "output")
+        print(error, "error")
+        print(actual,"actual")
+        """
+        #making sure it doesn't grow exponenitally too long
+        if (abs(actual) > 100 * goal):
+            print(actual, "maybe we stop here")
+            break
+        #end the graph if it's stable for long enough
+        temp = 0
+        if (len(position_array) > 200):
+            for j in range (100):
+                if (position_array[len(position_array)-(j+1)] != goal):
+                    temp = 1
+        if (temp == 0) and (len(position_array) > 200):
+            print("should be stable")
+            break
+                
+        past_error = error
+        time_array.append(i*dt)
+        position_array.append(actual)
+        line.append(goal)
+        
+
+
+    if (len(position_array) >= 50):
+        #print(len(position_array))
+        print("filter has enough data points")
+    else:
+        print("filter doesn't have enough points")
+        temp = 0
+        temp = position_array[len(position_array)-1]
+        time_temp = time_array[len(time_array)-1]
+        x=1
+        for i in range(50):
+            position_array.append(temp)
+            time_array.append(time_temp + (x * dt))
+            line.append(goal)
+            x+=1
+    xpoints = np.array(time_array)
+    ypoints = np.array(position_array)     
+
+
+      
+    xpoints = np.array(time_array)
+
+    cutoff = 25
+    fs = 100
+    order = 12
+    print(len(position_array),"length of position array")
+    """
+    plt.plot(xpoints, ypoints)
+    plt.show()
+    """
+    ypoints_filtered = np.array(butter_lowpass_filter(position_array,cutoff, fs, order))
+     
+            
+            
+            
+    #print(len(xpoints), xpoints,"xpoints")
+    #print(len(ypoints), ypoints, "ypoints")
+    print(len(xpoints))
+    print(len(ypoints))
+    print(len(line))
+    
+    #plt.plot(xpoints, ypoints, "orange",xpoints, ypoints_filtered,"deepskyblue", xpoints, line, 'r--')
+    plt.plot(xpoints, ypoints, "orange", xpoints, line, 'r--')
+    plt.show()
+
+    return None
