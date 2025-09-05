@@ -1,5 +1,5 @@
-from siso_simulation_functions import plant, butter_lowpass_filter, integral, derivative, run_simulation
-from siso_simulation_functions import set_boundary_conditions
+from siso_simulation_functions import plant, butter_lowpass_filter, integral, derivative, run_simulation_system_response
+from siso_simulation_functions import set_boundary_conditions, root_locus_plot
 time_array = [0]
 position_array = [0]
 line = [1]
@@ -27,8 +27,8 @@ past_error = 0
 #same with denominator but obviously on the bottem
 
 #if there is no plant, set both num and denom as [1] 
-numerator = [1]
-denominator = [1,6,15,18,10]
+numerator = [1,50]
+denominator = [1,10]
 
 
 print("start")
@@ -42,5 +42,7 @@ if ( ((kp * kp) - (2 * ki * kd)) > 0):
 boundary_conditions = []
 set_boundary_conditions(boundary_conditions)
 
-run_simulation(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,time_array,position_array,line,past_error,numerator, denominator,k )
+root_locus_plot(numerator, denominator)
+
+#run_simulation_system_response(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,time_array,position_array,line,past_error,numerator, denominator,k )
 
