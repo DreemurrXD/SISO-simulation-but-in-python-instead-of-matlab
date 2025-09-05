@@ -5,6 +5,10 @@ import math
 from math import e
 from scipy.signal import butter, filtfilt
 
+from mpl_toolkits.axisartist.axislines import AxesZero
+
+
+
 global boundary_conditions
 #boundary_conditions = []
 global boundary_condition_constants
@@ -222,7 +226,7 @@ def derivative(error, past_error, dt):
     #print(answer, "d")
     
     return answer
-def run_simulation(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,time_array,position_array,line, past_error,numerator, denominator, k):
+def run_simulation_system_response(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,time_array,position_array,line, past_error,numerator, denominator, k):
     #global amount_of_points
     
     for i in range (amount_of_points):
@@ -323,3 +327,60 @@ def run_simulation(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,tim
     plt.show()
 
     return None
+
+def root_locus_plot(numerator, denominator):
+    #centers the axis 
+    fig = plt.figure()
+    ax = fig.add_subplot(axes_class=AxesZero)
+
+    for direction in ["xzero", "yzero"]:
+        # adds X and Y-axis from the origin
+        ax.axis[direction].set_visible(True)
+    
+    diff = len(denominator) - len(numerator)
+    max_k_value = 10000
+    
+    x_axis = [[0 for a in range(max_k_value)] for b in range(len(denominator)-1)]
+    y_axis = [[0 for a in range(max_k_value)] for b in range(len(denominator)-1)]
+    #print(constants)
+    #constants[a][b], a represents the root we're plotting and b is the point in the line
+    for k in range (max_k_value):
+        #print(k)
+        #determining the equation
+        coeff = []
+        for i in range(len(denominator)):
+            if ((i-diff)>= 0):
+                coeff.append(denominator[i] + (k * 0.1) * numerator[i-diff])
+            else:
+                coeff.append(denominator[i])
+        #print(coeff)
+
+        roots = np.roots(coeff)
+        #print(roots)
+        #putting into array to later plot
+        for i in range(len(roots)):
+            #print(k, "k", i, "i")
+            #print(x_axis)
+            x_axis[i][k] = roots[i].real
+            y_axis[i][k] = roots[i].imag
+    #plotting on graph
+    #colours is an array to make the different colours
+    #z is used to cycle through colouts
+    colours = ['b','g','r','grey','k', "fuchsia", "orange","cyan"]
+    z=0
+    line_type= ['-','--',':']
+    w=0
+    
+    for i in range(len(roots)):
+        if (z > len(colours)-1):
+            z = 0
+        if (w>len(line_type)-1):
+            w=0
+        ax.plot(x_axis[i], y_axis[i], colours[z],linestyle = line_type[w])
+        z+=1
+        w+=1
+    plt.show()
+    
+        
+            
+    
