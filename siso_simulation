@@ -1,0 +1,46 @@
+from siso_simulation_functions import plant, butter_lowpass_filter, integral, derivative, run_simulation
+from siso_simulation_functions import set_boundary_conditions
+time_array = [0]
+position_array = [0]
+line = [1]
+dt = 0.001
+global amount_of_points
+amount_of_points = 10000
+#kd is derivative, ki is integral and kp is proportional control
+kd = 0
+ki = 0
+kp = 0
+
+#multiplier of the plant, unity feedback
+k = 0
+#movement damping = 1 if no damping and = 0.9 if it's 90% efficient at moving
+movement_damping = 0.99
+output = 0
+
+global goal
+goal = 1
+line = [goal]
+actual = 0
+past_error = 0
+#numberator has form [a,b,c], where numerator = a * s^2 + b * s + c. the amount of terms = highest power
+#eg 2 terms means it's A * s  +  b
+#same with denominator but obviously on the bottem
+
+#if there is no plant, set both num and denom as [1] 
+numerator = [1]
+denominator = [1,6,15,18,10]
+
+
+print("start")
+if ( ((kp * kp) - (2 * ki * kd)) > 0):
+    print( float((kp * kp) - (2 * ki * kd)) )
+    print("controller itelf is probably stable")
+
+#leave empty for all boundaries to be set to zero
+#because the impulse response is goal*(1-tf). tf is equal to 1 for position to be zero
+#the rest work out to be zero for the nth deriviative after that    
+boundary_conditions = []
+set_boundary_conditions(boundary_conditions)
+
+run_simulation(amount_of_points,goal,actual,movement_damping,kd,ki,kp,dt,time_array,position_array,line,past_error,numerator, denominator,k )
+
